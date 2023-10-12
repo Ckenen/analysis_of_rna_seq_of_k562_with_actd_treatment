@@ -1,7 +1,5 @@
 #!/usr/bin/env runsnakemake
-configfile: "config.yaml"
-samples = config["samples"]
-species_list = ["hg", "gy"]
+include: "0_SnakeCommon.smk"
 indir = "results/prepare/bowtie2"
 outdir = "results/mapping"
 
@@ -9,18 +7,18 @@ rule all:
     input:
         outdir + "/star/index",
         expand(outdir + "/star/mapped/{sample}", sample=samples),
-        # expand(outdir + "/filtered/{sample}.{species}.bam", sample=samples, species=species_list),
+        expand(outdir + "/filtered/{sample}.{species}.bam", sample=samples, species=species_list),
         expand(outdir + "/filtered/{sample}.{species}.flagstat", sample=samples, species=species_list),
         expand(outdir + "/infer_experiment/{sample}.{species}.txt", sample=samples, species=species_list),
-        # expand(outdir + "/rmdup/{sample}.{species}.bam", sample=samples, species=species_list),
+        expand(outdir + "/rmdup/{sample}.{species}.bam", sample=samples, species=species_list),
         expand(outdir + "/rmdup/{sample}.{species}.flagstat", sample=samples, species=species_list),
 
 rule star_index:
     input:
-        fa1 = "/home/chenzonggui/species/homo_sapiens/GRCh38.p13/GRCh38.primary_assembly.genome.fa",
-        fa2 = "/home/chenzonggui/species/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.32.dna_sm.toplevel.fa",
-        gtf1 = "/home/chenzonggui/species/homo_sapiens/GRCh38.p13/gencode.v39.annotation.sorted.gtf.gz",
-        gtf2 = "/home/chenzonggui/species/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.32.108.gtf.gz"
+        fa1 = FILES["human"]["GENOME_FASTA"],
+        fa2 = FILES["fly"]["GENOME_FASTA"],
+        gtf1 = FILES["human"]["ANNOTATION_GTF"],
+        gtf2 = FILES["fly"]["ANNOTATION_GTF"]
     output:
         fa = outdir + "/star/index.integrated.fa",
         gtf = outdir + "/star/index.integrated.gtf",
@@ -33,7 +31,7 @@ rule star_index:
         """(
         cat {input.fa1} {input.fa2} > {output.fa}
         samtools faidx {output.fa}
-        zcat {input.gtf1} {input.gtf2} | grep -v '#' | sort -k1,1 -k4,4n -k5,5n > {output.gtf}
+        cat {input.gtf1} {input.gtf2} | grep -v '#' | sort -k1,1 -k4,4n -k5,5n > {output.gtf}
         mkdir -p {output.idx}
         STAR --runMode genomeGenerate --runThreadN {threads} --genomeDir {output.idx} \
             --genomeFastaFiles {output.fa} --sjdbGTFfile {output.gtf} ) &> {log}
@@ -70,8 +68,8 @@ rule filter_and_split: # filter and split
     input:
         rules.star_mapping.output.out
     output:
-        bam1 = outdir + "/filtered/{sample}.hg.bam",
-        bam2 = outdir + "/filtered/{sample}.gy.bam"
+        bam1 = outdir + "/filtered/{sample}.human.bam",
+        bam2 = outdir + "/filtered/{sample}.fly.bam"
     log:
         outdir + "/filtered/{sample}.log"
     threads:
@@ -86,16 +84,10 @@ rule filter_and_split: # filter and split
         samtools index {output.bam2} ) &> {log}
         """
 
-def get_bed(species):
-    if species == "hg":
-        return "/home/chenzonggui/species/homo_sapiens/GRCh38.p13/gencode.v39.annotation.genes.bed"
-    else:
-        return "/home/chenzonggui/species/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.32.108.transcripts.bed"
-
 rule infer_experiment:
     input:
         bam = outdir + "/filtered/{sample}.{species}.bam",
-        bed = lambda wildcards: get_bed(wildcards.species)
+        bed = lambda wildcards: FILES[wildcards.species]["GENE_BED"]
     output:
         txt = outdir + "/infer_experiment/{sample}.{species}.txt"
     shell:

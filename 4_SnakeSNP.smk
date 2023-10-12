@@ -1,5 +1,5 @@
 #!/usr/bin/env runsnakemake
-configfile: "config.yaml"
+include: "0_SnakeCommon.smk"
 samples = [
     "20221128_K562_Actd_0h_rep1", "20221128_K562_Actd_0h_rep2",
     "20221128_K562_Actd_3h_rep1", "20221128_K562_Actd_3h_rep2",
@@ -15,7 +15,7 @@ rule all:
 
 rule call_het_snps:
     input:
-        bam = indir + "/{sample}.hg.bam"
+        bam = indir + "/{sample}.human.bam"
     output:
         vcf = temp(outdir + "/vcfs/{sample}.vcf"),
         vcf_gz = outdir + "/vcfs/{sample}.vcf.gz"
@@ -25,8 +25,7 @@ rule call_het_snps:
         24
     shell:
         """(
-        ./scripts/snps/call_het_snps_by_rnaseq.py \
-            {input.bam} {wildcards.sample} {threads} {output.vcf}
+        ./scripts/call_het_snps_from_rnaseq.py {input.bam} {wildcards.sample} {threads} {output.vcf}
         bgzip -c {output.vcf} > {output.vcf_gz}
         tabix -p vcf {output.vcf_gz} ) &> {log}
         """
@@ -34,7 +33,7 @@ rule call_het_snps:
 rule haplotag:
     input:
         vcf = outdir + "/vcfs/20221128_K562_Actd_0h_rep1.vcf.gz",
-        bam = indir + "/{sample}.hg.bam"
+        bam = indir + "/{sample}.human.bam"
     output:
         bam = outdir + "/phased_bam/{sample}.bam"
     log:
@@ -55,5 +54,5 @@ rule stat_hp_reads:
         outdir + "/counts/{sample}.log"
     shell:
         """
-        ./scripts/snps/stat_hp_reads.py {input.vcf} {input.bam} {output.tsv} &> {log}
+        ./scripts/stat_hp_reads.py {input.vcf} {input.bam} {output.tsv} &> {log}
         """

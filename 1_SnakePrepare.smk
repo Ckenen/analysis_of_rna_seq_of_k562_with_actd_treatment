@@ -1,6 +1,5 @@
 #!/usr/bin/env runsnakemake
-configfile: "config.yaml"
-samples = config["samples"]
+include: "0_SnakeCommon.smk"
 rs = ["1", "2"]
 indir = "data/datasets"
 outdir = "results/prepare"

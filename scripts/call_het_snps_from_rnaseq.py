@@ -65,13 +65,14 @@ def main():
     threads = int(threads)
     
     with BamFile(bamfile) as f:
-        pool = multiprocessing.Pool(24)
+        pool = multiprocessing.Pool(threads)
         results = []
         for chrom in f.handle.references:
             r = pool.apply_async(call_het_snps, (bamfile, chrom))
             results.append(r)
         pool.close()
         pool.join()
+        
         with open(outfile, "w+") as fw:
             fw.write("##fileformat=VCFv4.2\n")
             for chrom in f.handle.references:
